@@ -9,6 +9,7 @@ import { Input } from '../../../components/ui/Input'
 import { useKanbanStore } from '../../kanban/store/useKanbanStore'
 import type { Project, TaskStatus } from '../../kanban/types'
 import { useProjectStore } from '../store/useProjectStore'
+import { useWorkspaceStore } from '../../workspaces/store/useWorkspaceStore'
 
 interface ProjectSelectorProps {
   workspaceId: string
@@ -20,6 +21,7 @@ interface SortableProjectProps {
   taskStatuses: TaskStatus[]
   onSelect: () => void
   onEdit: () => void
+  onMove: () => void
   onDelete: () => void
 }
 
@@ -47,7 +49,7 @@ function ProjectStateIcon({ state }: { state: 'waiting' | 'in-progress' | 'done'
   )
 }
 
-function SortableProject({ project, active, taskStatuses, onSelect, onEdit, onDelete }: SortableProjectProps) {
+function SortableProject({ project, active, taskStatuses, onSelect, onEdit, onMove, onDelete }: SortableProjectProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const tasks = useKanbanStore((state) => state.tasks)
@@ -93,6 +95,11 @@ function SortableProject({ project, active, taskStatuses, onSelect, onEdit, onDe
   function editProject() {
     setMenuOpen(false)
     onEdit()
+  }
+
+  function moveProject() {
+    setMenuOpen(false)
+    onMove()
   }
 
   function deleteProject() {
@@ -144,7 +151,7 @@ function SortableProject({ project, active, taskStatuses, onSelect, onEdit, onDe
           <div
             role="menu"
             aria-label={`Opções do projeto ${project.name}`}
-            className="absolute right-0 top-full z-30 mt-1 w-36 rounded-md border border-zinc-800 bg-zinc-900 p-1 shadow-xl"
+            className="absolute right-0 top-full z-30 mt-1 w-44 rounded-md border border-zinc-800 bg-zinc-900 p-1 shadow-xl"
           >
             <button
               type="button"
@@ -153,6 +160,14 @@ function SortableProject({ project, active, taskStatuses, onSelect, onEdit, onDe
               onClick={editProject}
             >
               Renomear
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="flex w-full items-center rounded px-2.5 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 focus:bg-zinc-800 focus:outline-none"
+              onClick={moveProject}
+            >
+              Mover para workspace
             </button>
             <button
               type="button"
@@ -182,11 +197,20 @@ export function ProjectSelector({ workspaceId }: ProjectSelectorProps) {
   const deleteProject = useProjectStore((state) => state.deleteProject)
   const removeTasksForProject = useKanbanStore((state) => state.removeTasksForProject)
   const statusTemplates = useProjectStore((state) => state.statusTemplates)
+  const transferProject = useProjectStore((state) => state.transferProject)
+  const workspaces = useWorkspaceStore((state) => state.workspaces)
+  const transferTasksForProject = useKanbanStore((state) => state.transferTasksForProject)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [name, setName] = useState('')
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
   const [statusTemplateId, setStatusTemplateId] = useState('template-default')
+  const [moveProjectId, setMoveProjectId] = useState<string | null>(null)
+  const [targetWorkspaceId, setTargetWorkspaceId] = useState('')
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+  const movingProject = allProjects.find((project) => project.id === moveProjectId)
+  const targetWorkspaces = movingProject
+    ? workspaces.filter((workspace) => workspace.id !== movingProject.workspaceId)
+    : []
 
   function openCreateDialog() {
     setEditingProjectId(null)
@@ -199,6 +223,24 @@ export function ProjectSelector({ workspaceId }: ProjectSelectorProps) {
     setEditingProjectId(project.id)
     setName(project.name)
     setDialogOpen(true)
+  }
+
+  function openMoveDialog(project: Project) {
+    setMoveProjectId(project.id)
+    setTargetWorkspaceId(workspaces.find((workspace) => workspace.id !== project.workspaceId)?.id ?? '')
+  }
+
+  function closeMoveDialog() {
+    setMoveProjectId(null)
+    setTargetWorkspaceId('')
+  }
+
+  function submitMove(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!moveProjectId || !targetWorkspaceId) return
+    transferProject(moveProjectId, targetWorkspaceId)
+    transferTasksForProject(moveProjectId, targetWorkspaceId)
+    closeMoveDialog()
   }
 
   function removeProject(project: Project) {
@@ -259,6 +301,7 @@ export function ProjectSelector({ workspaceId }: ProjectSelectorProps) {
                   taskStatuses={projectStatuses.filter((status) => status.projectId === project.id)}
                   onSelect={() => setActiveProject(project.id)}
                   onEdit={() => openEditDialog(project)}
+                  onMove={() => openMoveDialog(project)}
                   onDelete={() => removeProject(project)}
                 />
               ))}
@@ -291,6 +334,34 @@ export function ProjectSelector({ workspaceId }: ProjectSelectorProps) {
             <Button variant="primary" type="submit" disabled={!name.trim() || (!editingProjectId && !workspaceId)}>
               {editingProjectId ? 'Salvar' : 'Criar projeto'}
             </Button>
+          </div>
+        </form>
+      </Dialog>
+      <Dialog
+        open={Boolean(moveProjectId)}
+        onClose={closeMoveDialog}
+        title="Mover projeto"
+        description={`Escolha o workspace de destino${movingProject ? ` de "${movingProject.name}"` : ''}.`}
+      >
+        <form onSubmit={submitMove} className="space-y-4">
+          <label className="block space-y-1.5">
+            <span className="text-xs font-medium text-zinc-400">Workspace de destino</span>
+            <Dropdown
+              aria-label="Workspace de destino"
+              value={targetWorkspaceId}
+              onChange={(event) => setTargetWorkspaceId(event.target.value)}
+              options={targetWorkspaces.map((workspace) => ({ value: workspace.id, label: workspace.name }))}
+              disabled={!targetWorkspaces.length}
+            />
+          </label>
+          {!targetWorkspaces.length && (
+            <p className="text-xs text-zinc-500">
+              Você ainda tem apenas um workspace. Crie outro workspace para poder mover projetos entre eles.
+            </p>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={closeMoveDialog}>Cancelar</Button>
+            <Button variant="primary" type="submit" disabled={!targetWorkspaceId}>Mover projeto</Button>
           </div>
         </form>
       </Dialog>

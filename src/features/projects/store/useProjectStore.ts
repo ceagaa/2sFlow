@@ -24,6 +24,7 @@ interface ProjectState {
   addProject: (workspaceId: string, name: string, statusTemplateId?: string) => string
   renameProject: (projectId: string, name: string) => void
   deleteProject: (projectId: string) => void
+  transferProject: (projectId: string, targetWorkspaceId: string) => void
   removeProjectsForWorkspace: (workspaceId: string) => void
   reorderProjects: (workspaceId: string, projectIds: string[]) => void
   addStatus: (projectId: string, name: string, category: TaskStatus['category']) => string
@@ -91,6 +92,15 @@ export const useProjectStore = create<ProjectState>()(
             activeProjectId: state.activeProjectId === projectId ? replacement?.id ?? '' : state.activeProjectId,
           }
         })
+      },
+      transferProject: (projectId, targetWorkspaceId) => {
+        const project = get().projects.find((item) => item.id === projectId)
+        if (!project || project.workspaceId === targetWorkspaceId) return
+        set((state) => ({
+          projects: state.projects.map((item) =>
+            item.id === projectId ? { ...item, workspaceId: targetWorkspaceId } : item,
+          ),
+        }))
       },
       removeProjectsForWorkspace: (workspaceId) => {
         set((state) => {

@@ -15,6 +15,7 @@ interface KanbanState {
   updateTask: (taskId: string, updates: Partial<Omit<Task, 'id' | 'createdAt'>>) => void
   removeTasksForProject: (projectId: string) => void
   removeTasksForWorkspace: (workspaceId: string) => void
+  transferTasksForProject: (projectId: string, workspaceId: string) => void
   reorderTasks: (groups: Array<{ statusId: string; taskIds: string[] }>) => void
   moveTasksToStatus: (fromStatusId: string, toStatusId: string) => void
   deleteTask: (taskId: string) => void
@@ -55,6 +56,15 @@ export const useKanbanStore = create<KanbanState>()(
       },
       removeTasksForWorkspace: (workspaceId) => {
         set((state) => ({ tasks: state.tasks.filter((task) => task.workspaceId !== workspaceId) }))
+      },
+      transferTasksForProject: (projectId, workspaceId) => {
+        set((state) => ({
+          tasks: state.tasks.map((task) =>
+            task.projectId === projectId && task.workspaceId !== workspaceId
+              ? { ...task, workspaceId }
+              : task,
+          ),
+        }))
       },
       reorderTasks: (groups) => {
         const updates = new Map<string, { statusId: string; position: number }>()
