@@ -3,6 +3,7 @@ import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type D
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Button } from '../../../components/ui/Button'
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
 import { Dialog } from '../../../components/ui/Dialog'
 import { Dropdown } from '../../../components/ui/Dropdown'
 import { Input } from '../../../components/ui/Input'
@@ -29,6 +30,7 @@ interface SortableProjectProps {
   onRenameCommit: () => void
   onRenameCancel: () => void
   onMove: () => void
+  onDuplicate: () => void
   onDelete: () => void
 }
 
@@ -90,6 +92,7 @@ function SortableProject({
   onRenameCommit,
   onRenameCancel,
   onMove,
+  onDuplicate,
   onDelete,
 }: SortableProjectProps) {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -151,6 +154,11 @@ function SortableProject({
   function deleteProject() {
     setMenuOpen(false)
     onDelete()
+  }
+
+  function duplicateProject() {
+    setMenuOpen(false)
+    onDuplicate()
   }
 
   return (
@@ -252,6 +260,14 @@ function SortableProject({
               <button
                 type="button"
                 role="menuitem"
+                className="flex w-full items-center rounded px-2.5 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 focus:bg-zinc-800 focus:outline-none"
+                onClick={duplicateProject}
+              >
+                Duplicar
+              </button>
+              <button
+                type="button"
+                role="menuitem"
                 className="flex w-full items-center rounded px-2.5 py-2 text-left text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 focus:bg-zinc-800 focus:outline-none"
                 onClick={deleteProject}
               >
@@ -292,7 +308,9 @@ export function ProjectSelector({ workspaceId }: ProjectSelectorProps) {
   const addProject = useProjectStore((state) => state.addProject)
   const renameProject = useProjectStore((state) => state.renameProject)
   const deleteProject = useProjectStore((state) => state.deleteProject)
+  const duplicateProject = useProjectStore((state) => state.duplicateProject)
   const removeTasksForProject = useKanbanStore((state) => state.removeTasksForProject)
+  const duplicateTasksForProject = useKanbanStore((state) => state.duplicateTasksForProject)
   const statusTemplates = useProjectStore((state) => state.statusTemplates)
   const transferProject = useProjectStore((state) => state.transferProject)
   const workspaces = useWorkspaceStore((state) => state.workspaces)
@@ -302,6 +320,7 @@ export function ProjectSelector({ workspaceId }: ProjectSelectorProps) {
   const [name, setName] = useState('')
   const [statusTemplateId, setStatusTemplateId] = useState('template-default')
   const [moveProjectId, setMoveProjectId] = useState<string | null>(null)
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null)
   const [targetWorkspaceId, setTargetWorkspaceId] = useState('')
   const [expandedIds, setExpandedIds] = useState<string[]>([])
   const [renamingProjectId, setRenamingProjectId] = useState<string | null>(null)
@@ -367,12 +386,25 @@ export function ProjectSelector({ workspaceId }: ProjectSelectorProps) {
   }
 
   function removeProject(project: Project) {
-    const confirmed = window.confirm(
-      `Excluir o projeto "${project.name}"? Todas as tarefas e subtarefas dele também serão excluídas.`,
+    setProjectToDelete(project)
+  }
+
+  function duplicateProjectWithTasks(project: Project) {
+    const duplicated = duplicateProject(project.id)
+    if (!duplicated) return
+    duplicateTasksForProject(
+      project.id,
+      duplicated.projectId,
+      project.workspaceId,
+      duplicated.statusIdMap,
     )
-    if (!confirmed) return
-    removeTasksForProject(project.id)
-    deleteProject(project.id)
+  }
+
+  function confirmProjectDeletion() {
+    if (!projectToDelete) return
+    removeTasksForProject(projectToDelete.id)
+    deleteProject(projectToDelete.id)
+    setProjectToDelete(null)
   }
 
   function handleProjectDragEnd(event: DragEndEvent) {
@@ -439,6 +471,7 @@ export function ProjectSelector({ workspaceId }: ProjectSelectorProps) {
                       onRenameCommit={commitRename}
                       onRenameCancel={cancelRename}
                       onMove={() => openMoveDialog(project)}
+                      onDuplicate={() => duplicateProjectWithTasks(project)}
                       onDelete={() => removeProject(project)}
                     />
                   ))}
@@ -502,6 +535,15 @@ export function ProjectSelector({ workspaceId }: ProjectSelectorProps) {
           </div>
         </form>
       </Dialog>
+      <ConfirmDialog
+        open={Boolean(projectToDelete)}
+        title="Excluir projeto?"
+        description={projectToDelete
+          ? `O projeto “${projectToDelete.name}” e todas as tarefas e subtarefas dele serão excluídos permanentemente.`
+          : ''}
+        onCancel={() => setProjectToDelete(null)}
+        onConfirm={confirmProjectDeletion}
+      />
     </>
   )
 }

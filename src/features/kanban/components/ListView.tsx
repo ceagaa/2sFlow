@@ -5,6 +5,7 @@ import { CreateTaskInline } from './CreateTaskInline'
 import { StatusBadge } from './StatusBadge'
 import type { TaskPriority } from '../types'
 import { Dropdown } from '../../../components/ui/Dropdown'
+import { DatePicker } from '../../../components/ui/DatePicker'
 
 interface ListViewProps {
   workspaceId: string
@@ -59,12 +60,11 @@ export function ListView({ workspaceId, projectId, onTaskSelect }: ListViewProps
                         className="h-8 text-xs"
                         onChange={(event) => updateTask(task.id, { priority: event.target.value as TaskPriority })}
                       />
-                      <input
-                        type="date"
-                        aria-label={`Data de entrega de ${task.title}`}
+                      <DatePicker
+                        compact
+                        label={`Data de entrega de ${task.title}`}
                         value={task.dueDate ?? ''}
-                        onChange={(event) => updateTask(task.id, { dueDate: event.target.value || undefined })}
-                        className="h-8 rounded-md border border-zinc-800 bg-zinc-950 px-2 text-xs text-zinc-400 outline-none focus:border-zinc-600"
+                        onChange={(dueDate) => updateTask(task.id, { dueDate: dueDate || undefined })}
                       />
                       <span className="text-right text-xs tabular-nums text-zinc-500">
                         {allTasks.filter((candidate) => candidate.parentId === task.id).length || '—'}

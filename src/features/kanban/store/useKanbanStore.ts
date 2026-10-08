@@ -13,6 +13,13 @@ interface KanbanState {
     priority?: TaskPriority
   }) => string
   updateTask: (taskId: string, updates: Partial<Omit<Task, 'id' | 'createdAt'>>) => void
+  duplicateTask: (taskId: string) => string | null
+  duplicateTasksForProject: (
+    sourceProjectId: string,
+    targetProjectId: string,
+    targetWorkspaceId: string,
+    statusIdMap: Map<string, string>,
+  ) => void
   removeTasksForProject: (projectId: string) => void
   removeTasksForWorkspace: (workspaceId: string) => void
   transferTasksForProject: (projectId: string, workspaceId: string) => void
@@ -50,6 +57,64 @@ export const useKanbanStore = create<KanbanState>()(
             task.id === taskId ? { ...task, ...updates, updatedAt: new Date().toISOString() } : task,
           ),
         }))
+      },
+      duplicateTask: (taskId) => {
+        const sourceTasks = get().tasks
+        const source = sourceTasks.find((task) => task.id === taskId)
+        if (!source) return null
+        const taskIds = new Set([taskId])
+        let hasDescendants = true
+        while (hasDescendants) {
+          hasDescendants = false
+          for (const task of sourceTasks) {
+            if (task.parentId && taskIds.has(task.parentId) && !taskIds.has(task.id)) {
+              taskIds.add(task.id)
+              hasDescendants = true
+            }
+          }
+        }
+
+        const idMap = new Map([...taskIds].map((id) => [id, crypto.randomUUID()]))
+        const nextPositions = new Map<string, number>()
+        const now = new Date().toISOString()
+        const duplicates = sourceTasks
+          .filter((task) => taskIds.has(task.id))
+          .map((task) => {
+            const newParentId = task.parentId ? idMap.get(task.parentId) ?? null : null
+            const groupKey = `${task.statusId}:${newParentId ?? 'root'}`
+            const position = nextPositions.get(groupKey)
+              ?? get().tasks.filter((candidate) => candidate.statusId === task.statusId && candidate.parentId === newParentId).length
+            nextPositions.set(groupKey, position + 1)
+            return {
+              ...task,
+              id: idMap.get(task.id)!,
+              parentId: newParentId,
+              title: task.id === taskId ? `${task.title} (cópia)` : task.title,
+              position,
+              createdAt: now,
+              updatedAt: now,
+            }
+          })
+
+        set((state) => ({ tasks: [...state.tasks, ...duplicates] }))
+        return idMap.get(taskId) ?? null
+      },
+      duplicateTasksForProject: (sourceProjectId, targetProjectId, targetWorkspaceId, statusIdMap) => {
+        const sourceTasks = get().tasks.filter((task) => task.projectId === sourceProjectId)
+        if (!sourceTasks.length) return
+        const idMap = new Map(sourceTasks.map((task) => [task.id, crypto.randomUUID()]))
+        const now = new Date().toISOString()
+        const duplicates = sourceTasks.map((task) => ({
+          ...task,
+          id: idMap.get(task.id)!,
+          workspaceId: targetWorkspaceId,
+          projectId: targetProjectId,
+          statusId: statusIdMap.get(task.statusId) ?? task.statusId,
+          parentId: task.parentId ? idMap.get(task.parentId) ?? null : null,
+          createdAt: now,
+          updatedAt: now,
+        }))
+        set((state) => ({ tasks: [...state.tasks, ...duplicates] }))
       },
       removeTasksForProject: (projectId) => {
         set((state) => ({ tasks: state.tasks.filter((task) => task.projectId !== projectId) }))

@@ -22,6 +22,7 @@ interface ProjectState {
   activeProjectId: string
   setActiveProject: (projectId: string) => void
   addProject: (workspaceId: string, name: string, statusTemplateId?: string) => string
+  duplicateProject: (projectId: string) => { projectId: string; statusIdMap: Map<string, string> } | null
   renameProject: (projectId: string, name: string) => void
   deleteProject: (projectId: string) => void
   transferProject: (projectId: string, targetWorkspaceId: string) => void
@@ -70,6 +71,33 @@ export const useProjectStore = create<ProjectState>()(
           activeProjectId: projectId,
         }))
         return projectId
+      },
+      duplicateProject: (projectId) => {
+        const source = get().projects.find((project) => project.id === projectId)
+        if (!source) return null
+
+        const duplicateId = crypto.randomUUID()
+        const sourceStatuses = get().statuses
+          .filter((status) => status.projectId === projectId)
+          .sort((left, right) => left.position - right.position)
+        const statusIdMap = new Map(sourceStatuses.map((status) => [status.id, crypto.randomUUID()]))
+        const duplicate: Project = {
+          ...source,
+          id: duplicateId,
+          name: `${source.name} (cópia)`,
+        }
+        const duplicateStatuses: TaskStatus[] = sourceStatuses.map((status) => ({
+          ...status,
+          id: statusIdMap.get(status.id)!,
+          projectId: duplicateId,
+        }))
+
+        set((state) => ({
+          projects: [...state.projects, duplicate],
+          statuses: [...state.statuses, ...duplicateStatuses],
+          activeProjectId: duplicateId,
+        }))
+        return { projectId: duplicateId, statusIdMap }
       },
       renameProject: (projectId, name) => {
         const cleanName = name.trim()

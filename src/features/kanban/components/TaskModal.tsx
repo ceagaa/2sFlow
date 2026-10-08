@@ -1,7 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Badge } from '../../../components/ui/Badge'
 import { Button } from '../../../components/ui/Button'
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
 import { Dialog } from '../../../components/ui/Dialog'
+import { DatePicker } from '../../../components/ui/DatePicker'
 import { Dropdown } from '../../../components/ui/Dropdown'
 import { Input } from '../../../components/ui/Input'
 import { useProjectStore } from '../../projects/store/useProjectStore'
@@ -35,6 +37,7 @@ export function TaskModal({ task, onClose }: TaskModalProps) {
   const [priority, setPriority] = useState<TaskPriority>(task?.priority ?? 'medium')
   const [dueDate, setDueDate] = useState(task?.dueDate ?? '')
   const [newSubtask, setNewSubtask] = useState('')
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null)
 
   useEffect(() => {
     setTitle(task?.title ?? '')
@@ -75,20 +78,26 @@ export function TaskModal({ task, onClose }: TaskModalProps) {
 
   function removeTask() {
     if (!task) return
-    if (!window.confirm('Excluir esta tarefa e todas as suas subtarefas?')) return
-    deleteTask(task.id)
-    onClose()
+    setTaskToDelete(task)
+  }
+
+  function confirmTaskDeletion() {
+    if (!taskToDelete) return
+    deleteTask(taskToDelete.id)
+    if (taskToDelete.id === task?.id) onClose()
+    setTaskToDelete(null)
   }
 
   return (
-    <Dialog
-      open={Boolean(task)}
-      onClose={onClose}
-      title="Detalhes da tarefa"
-      description="Edite as informações e acompanhe as subtarefas."
-      className="max-h-[90vh] overflow-y-auto"
-    >
-      {task && (
+    <>
+      <Dialog
+        open={Boolean(task)}
+        onClose={onClose}
+        title="Detalhes da tarefa"
+        description="Edite as informações e acompanhe as subtarefas."
+        className="max-h-[90vh] overflow-y-auto"
+      >
+        {task && (
         <div className="space-y-5">
           <form id="task-details-form" onSubmit={save} className="space-y-5">
             <label className="block space-y-1.5">
@@ -117,7 +126,11 @@ export function TaskModal({ task, onClose }: TaskModalProps) {
               </label>
               <label className="space-y-1.5">
                 <span className="block text-xs font-medium text-zinc-400">Data de entrega</span>
-                <Input type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} />
+                <DatePicker
+                  label="Selecionar data de entrega"
+                  value={dueDate}
+                  onChange={setDueDate}
+                />
               </label>
             </div>
           </form>
@@ -143,7 +156,7 @@ export function TaskModal({ task, onClose }: TaskModalProps) {
                     <span className={`min-w-0 flex-1 text-sm ${complete ? 'text-zinc-500 line-through' : 'text-zinc-300'}`}>{subtask.title}</span>
                     <button
                       type="button"
-                      onClick={() => deleteTask(subtask.id)}
+                      onClick={() => setTaskToDelete(subtask)}
                       aria-label={`Excluir ${subtask.title}`}
                       className="rounded px-1.5 text-zinc-600 opacity-0 hover:bg-zinc-800 hover:text-zinc-200 group-hover:opacity-100 focus:opacity-100"
                     >
@@ -173,7 +186,17 @@ export function TaskModal({ task, onClose }: TaskModalProps) {
             </div>
           </div>
         </div>
-      )}
-    </Dialog>
+        )}
+      </Dialog>
+      <ConfirmDialog
+        open={Boolean(taskToDelete)}
+        title="Excluir tarefa?"
+        description={taskToDelete
+          ? `“${taskToDelete.title}”${taskToDelete.parentId ? ' e suas subtarefas' : ' e todas as subtarefas'} serão excluídas permanentemente.`
+          : ''}
+        onCancel={() => setTaskToDelete(null)}
+        onConfirm={confirmTaskDeletion}
+      />
+    </>
   )
 }

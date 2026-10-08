@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Button } from '../../../components/ui/Button'
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
 import { Dialog } from '../../../components/ui/Dialog'
 import { Input } from '../../../components/ui/Input'
 import { useKanbanStore } from '../../kanban/store/useKanbanStore'
@@ -21,7 +22,9 @@ export function WorkspaceSwitcher() {
   const [dialogMode, setDialogMode] = useState<DialogMode>('create')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [workspaceToDeleteId, setWorkspaceToDeleteId] = useState<string | null>(null)
   const [name, setName] = useState('')
+  const workspaceToDelete = workspaces.find((workspace) => workspace.id === workspaceToDeleteId)
 
   function openDialog(mode: DialogMode) {
     setDialogMode(mode)
@@ -45,14 +48,16 @@ export function WorkspaceSwitcher() {
 
   function removeActiveWorkspace() {
     if (!activeWorkspace) return
-    const confirmed = window.confirm(
-      `Excluir o workspace "${activeWorkspace.name}"? Os projetos e tarefas dele também serão excluídos.`,
-    )
-    if (!confirmed) return
-    removeTasksForWorkspace(activeWorkspace.id)
-    removeProjectsForWorkspace(activeWorkspace.id)
-    deleteWorkspace(activeWorkspace.id)
+    setWorkspaceToDeleteId(activeWorkspace.id)
     setMenuOpen(false)
+  }
+
+  function confirmWorkspaceDeletion() {
+    if (!workspaceToDelete) return
+    removeTasksForWorkspace(workspaceToDelete.id)
+    removeProjectsForWorkspace(workspaceToDelete.id)
+    deleteWorkspace(workspaceToDelete.id)
+    setWorkspaceToDeleteId(null)
   }
 
   return (
@@ -123,6 +128,15 @@ export function WorkspaceSwitcher() {
           </div>
         </form>
       </Dialog>
+      <ConfirmDialog
+        open={Boolean(workspaceToDelete)}
+        title="Excluir workspace?"
+        description={workspaceToDelete
+          ? `O workspace “${workspaceToDelete.name}”, seus projetos e todas as tarefas associadas serão excluídos permanentemente.`
+          : ''}
+        onCancel={() => setWorkspaceToDeleteId(null)}
+        onConfirm={confirmWorkspaceDeletion}
+      />
     </>
   )
 }
