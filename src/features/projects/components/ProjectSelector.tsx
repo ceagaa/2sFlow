@@ -7,7 +7,7 @@ import { Dialog } from '../../../components/ui/Dialog'
 import { Dropdown } from '../../../components/ui/Dropdown'
 import { Input } from '../../../components/ui/Input'
 import { useKanbanStore } from '../../kanban/store/useKanbanStore'
-import type { Project, TaskStatus } from '../../kanban/types'
+import type { Project, StatusCategory, TaskStatus } from '../../kanban/types'
 import { useProjectStore } from '../store/useProjectStore'
 import { useWorkspaceStore } from '../../workspaces/store/useWorkspaceStore'
 
@@ -19,10 +19,37 @@ interface SortableProjectProps {
   project: Project
   active: boolean
   taskStatuses: TaskStatus[]
+  expanded: boolean
+  renaming: boolean
+  renameValue: string
   onSelect: () => void
-  onEdit: () => void
+  onToggleExpand: () => void
+  onStartRename: () => void
+  onRenameChange: (value: string) => void
+  onRenameCommit: () => void
+  onRenameCancel: () => void
   onMove: () => void
   onDelete: () => void
+}
+
+const statusDotColors: Record<StatusCategory, string> = {
+  todo: 'bg-zinc-500',
+  in_progress: 'bg-blue-400',
+  review: 'bg-amber-400',
+  done: 'bg-green-400',
+}
+
+function Chevron({ expanded }: { expanded: boolean }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 12 12"
+      className={`size-3 transition-transform duration-150 ${expanded ? 'rotate-90' : ''}`}
+      fill="currentColor"
+    >
+      <path d="M4.5 2.5 8.5 6l-4 3.5z" />
+    </svg>
+  )
 }
 
 function ProjectStateIcon({ state }: { state: 'waiting' | 'in-progress' | 'done' }) {
@@ -49,13 +76,32 @@ function ProjectStateIcon({ state }: { state: 'waiting' | 'in-progress' | 'done'
   )
 }
 
-function SortableProject({ project, active, taskStatuses, onSelect, onEdit, onMove, onDelete }: SortableProjectProps) {
+function SortableProject({
+  project,
+  active,
+  taskStatuses,
+  expanded,
+  renaming,
+  renameValue,
+  onSelect,
+  onToggleExpand,
+  onStartRename,
+  onRenameChange,
+  onRenameCommit,
+  onRenameCancel,
+  onMove,
+  onDelete,
+}: SortableProjectProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const tasks = useKanbanStore((state) => state.tasks)
   const projectTasks = useMemo(
     () => tasks.filter((task) => task.projectId === project.id && task.parentId === null),
     [project.id, tasks],
+  )
+  const sortedStatuses = useMemo(
+    () => [...taskStatuses].sort((left, right) => left.position - right.position),
+    [taskStatuses],
   )
   const taskState = useMemo(() => {
     if (projectTasks.length > 0 && projectTasks.every((task) =>
@@ -92,9 +138,9 @@ function SortableProject({ project, active, taskStatuses, onSelect, onEdit, onMo
     }
   }, [menuOpen])
 
-  function editProject() {
+  function renameProject() {
     setMenuOpen(false)
-    onEdit()
+    onStartRename()
   }
 
   function moveProject() {
@@ -111,75 +157,126 @@ function SortableProject({ project, active, taskStatuses, onSelect, onEdit, onMo
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`group flex items-center gap-1 rounded-md ${isDragging ? 'z-10 opacity-50' : ''}`}
+      className={`group rounded-md ${isDragging ? 'z-10 opacity-50' : ''}`}
     >
-      <button
-        onClick={onSelect}
-        aria-current={active ? 'page' : undefined}
-        className={`flex min-w-0 flex-1 items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors ${
-          active ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'
-        }`}
-      >
-        <ProjectStateIcon state={taskState} />
-        <span className="truncate">{project.name}</span>
-      </button>
-      <button
-        type="button"
-        aria-label={`Reorganizar projeto ${project.name}`}
-        title="Arraste para reorganizar"
-        className="rounded px-1.5 py-2 text-zinc-600 opacity-0 hover:bg-zinc-800 hover:text-zinc-300 group-hover:opacity-100 focus:opacity-100"
-        {...attributes}
-        {...listeners}
-      >
-        <span aria-hidden="true">⠿</span>
-      </button>
-      <div ref={menuRef} className="relative">
+      <div className="flex items-center gap-0.5">
         <button
           type="button"
-          aria-label={`Opções do projeto ${project.name}`}
-          aria-haspopup="menu"
-          aria-expanded={menuOpen}
-          title="Opções do projeto"
-          className={`rounded px-1.5 py-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-500 ${
-            menuOpen ? 'bg-zinc-800 text-zinc-100' : 'opacity-0 group-hover:opacity-100 focus:opacity-100'
-          }`}
-          onClick={() => setMenuOpen((open) => !open)}
+          onClick={onToggleExpand}
+          aria-expanded={expanded}
+          aria-label={`${expanded ? 'Recolher' : 'Expandir'} projeto ${project.name}`}
+          title={expanded ? 'Recolher status' : 'Ver status'}
+          className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-500"
         >
-          <span aria-hidden="true">⋯</span>
+          <Chevron expanded={expanded} />
         </button>
-        {menuOpen && (
-          <div
-            role="menu"
-            aria-label={`Opções do projeto ${project.name}`}
-            className="absolute right-0 top-full z-30 mt-1 w-44 rounded-md border border-zinc-800 bg-zinc-900 p-1 shadow-xl"
+        {renaming ? (
+          <input
+            autoFocus
+            value={renameValue}
+            onChange={(event) => onRenameChange(event.target.value)}
+            onBlur={onRenameCommit}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                onRenameCommit()
+              }
+              if (event.key === 'Escape') {
+                event.preventDefault()
+                onRenameCancel()
+              }
+            }}
+            aria-label={`Novo nome do projeto ${project.name}`}
+            className="h-8 min-w-0 flex-1 rounded-md border border-zinc-600 bg-zinc-950 px-2 text-sm text-zinc-100 outline-none focus:border-zinc-500"
+          />
+        ) : (
+          <button
+            onClick={onSelect}
+            onDoubleClick={onStartRename}
+            aria-current={active ? 'page' : undefined}
+            title={`${project.name} · duplo clique para renomear`}
+            className={`flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors ${
+              active ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'
+            }`}
           >
-            <button
-              type="button"
-              role="menuitem"
-              className="flex w-full items-center rounded px-2.5 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 focus:bg-zinc-800 focus:outline-none"
-              onClick={editProject}
-            >
-              Renomear
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="flex w-full items-center rounded px-2.5 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 focus:bg-zinc-800 focus:outline-none"
-              onClick={moveProject}
-            >
-              Mover para workspace
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="flex w-full items-center rounded px-2.5 py-2 text-left text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 focus:bg-zinc-800 focus:outline-none"
-              onClick={deleteProject}
-            >
-              Excluir
-            </button>
-          </div>
+            <ProjectStateIcon state={taskState} />
+            <span className="truncate">{project.name}</span>
+          </button>
         )}
+        <button
+          type="button"
+          aria-label={`Reorganizar projeto ${project.name}`}
+          title="Arraste para reorganizar"
+          className="rounded px-1.5 py-2 text-zinc-600 opacity-0 hover:bg-zinc-800 hover:text-zinc-300 group-hover:opacity-100 focus:opacity-100"
+          {...attributes}
+          {...listeners}
+        >
+          <span aria-hidden="true">⠿</span>
+        </button>
+        <div ref={menuRef} className="relative">
+          <button
+            type="button"
+            aria-label={`Opções do projeto ${project.name}`}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            title="Opções do projeto"
+            className={`rounded px-1.5 py-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-500 ${
+              menuOpen ? 'bg-zinc-800 text-zinc-100' : 'opacity-0 group-hover:opacity-100 focus:opacity-100'
+            }`}
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            <span aria-hidden="true">⋯</span>
+          </button>
+          {menuOpen && (
+            <div
+              role="menu"
+              aria-label={`Opções do projeto ${project.name}`}
+              className="absolute right-0 top-full z-30 mt-1 w-44 rounded-md border border-zinc-800 bg-zinc-900 p-1 shadow-xl"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full items-center rounded px-2.5 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 focus:bg-zinc-800 focus:outline-none"
+                onClick={renameProject}
+              >
+                Renomear
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full items-center rounded px-2.5 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 focus:bg-zinc-800 focus:outline-none"
+                onClick={moveProject}
+              >
+                Mover para workspace
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full items-center rounded px-2.5 py-2 text-left text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 focus:bg-zinc-800 focus:outline-none"
+                onClick={deleteProject}
+              >
+                Excluir
+              </button>
+            </div>
+          )}
+        </div>
       </div>
+      {expanded && (
+        <ul
+          aria-label={`Status do projeto ${project.name}`}
+          className="mb-1 ml-4 mt-0.5 space-y-px border-l border-zinc-800 pl-1.5"
+        >
+          {sortedStatuses.map((status) => (
+            <li key={status.id} className="flex items-center gap-2 rounded px-1.5 py-1 text-xs text-zinc-500">
+              <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${statusDotColors[status.category]}`} />
+              <span className="truncate">{status.name}</span>
+              <span className="ml-auto tabular-nums text-zinc-600">
+                {projectTasks.filter((task) => task.statusId === status.id).length}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }
@@ -200,12 +297,16 @@ export function ProjectSelector({ workspaceId }: ProjectSelectorProps) {
   const transferProject = useProjectStore((state) => state.transferProject)
   const workspaces = useWorkspaceStore((state) => state.workspaces)
   const transferTasksForProject = useKanbanStore((state) => state.transferTasksForProject)
+  const [sectionOpen, setSectionOpen] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [name, setName] = useState('')
-  const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
   const [statusTemplateId, setStatusTemplateId] = useState('template-default')
   const [moveProjectId, setMoveProjectId] = useState<string | null>(null)
   const [targetWorkspaceId, setTargetWorkspaceId] = useState('')
+  const [expandedIds, setExpandedIds] = useState<string[]>([])
+  const [renamingProjectId, setRenamingProjectId] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState('')
+  const renameSessionRef = useRef<string | null>(null)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
   const movingProject = allProjects.find((project) => project.id === moveProjectId)
   const targetWorkspaces = movingProject
@@ -213,16 +314,38 @@ export function ProjectSelector({ workspaceId }: ProjectSelectorProps) {
     : []
 
   function openCreateDialog() {
-    setEditingProjectId(null)
     setName('')
     setStatusTemplateId('template-default')
     setDialogOpen(true)
   }
 
-  function openEditDialog(project: Project) {
-    setEditingProjectId(project.id)
-    setName(project.name)
-    setDialogOpen(true)
+  function startRename(project: Project) {
+    renameSessionRef.current = project.id
+    setRenamingProjectId(project.id)
+    setRenameValue(project.name)
+  }
+
+  function commitRename() {
+    const projectId = renameSessionRef.current
+    if (!projectId) return
+    renameSessionRef.current = null
+    const trimmed = renameValue.trim()
+    const project = allProjects.find((item) => item.id === projectId)
+    if (project && trimmed && trimmed !== project.name) renameProject(projectId, trimmed)
+    setRenamingProjectId(null)
+    setRenameValue('')
+  }
+
+  function cancelRename() {
+    renameSessionRef.current = null
+    setRenamingProjectId(null)
+    setRenameValue('')
+  }
+
+  function toggleExpand(projectId: string) {
+    setExpandedIds((ids) =>
+      ids.includes(projectId) ? ids.filter((id) => id !== projectId) : [...ids, projectId],
+    )
   }
 
   function openMoveDialog(project: Project) {
@@ -263,14 +386,9 @@ export function ProjectSelector({ workspaceId }: ProjectSelectorProps) {
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!name.trim()) return
-    if (editingProjectId) {
-      renameProject(editingProjectId, name)
-    } else {
-      addProject(workspaceId, name, statusTemplateId)
-    }
+    if (!name.trim() || !workspaceId) return
+    addProject(workspaceId, name, statusTemplateId)
     setName('')
-    setEditingProjectId(null)
     setStatusTemplateId('template-default')
     setDialogOpen(false)
   }
@@ -279,7 +397,17 @@ export function ProjectSelector({ workspaceId }: ProjectSelectorProps) {
     <>
       <div className="space-y-1">
         <div className="flex items-center justify-between px-2 py-2">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Projetos</span>
+          <button
+            type="button"
+            onClick={() => setSectionOpen((open) => !open)}
+            aria-expanded={sectionOpen}
+            aria-label={sectionOpen ? 'Recolher lista de projetos' : 'Expandir lista de projetos'}
+            title={sectionOpen ? 'Recolher projetos' : 'Expandir projetos'}
+            className="flex items-center gap-1 rounded px-1 py-0.5 text-zinc-500 hover:text-zinc-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-500"
+          >
+            <Chevron expanded={sectionOpen} />
+            <span className="text-[11px] font-semibold uppercase tracking-wider">Projetos</span>
+          </button>
           <button
             className="rounded px-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-40"
             onClick={openCreateDialog}
@@ -290,49 +418,58 @@ export function ProjectSelector({ workspaceId }: ProjectSelectorProps) {
             +
           </button>
         </div>
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleProjectDragEnd}>
-          <SortableContext items={projects.map((project) => project.id)} strategy={verticalListSortingStrategy}>
-            <div className="space-y-1">
-              {projects.map((project) => (
-                <SortableProject
-                  key={project.id}
-                  project={project}
-                  active={project.id === activeProjectId}
-                  taskStatuses={projectStatuses.filter((status) => status.projectId === project.id)}
-                  onSelect={() => setActiveProject(project.id)}
-                  onEdit={() => openEditDialog(project)}
-                  onMove={() => openMoveDialog(project)}
-                  onDelete={() => removeProject(project)}
-                />
-              ))}
-            </div>
-          </SortableContext>
-        </DndContext>
-        {!workspaceId && <p className="px-2.5 py-2 text-xs text-zinc-500">Crie um workspace para começar.</p>}
-        {workspaceId && !projects.length && <p className="px-2.5 py-2 text-xs text-zinc-500">Nenhum projeto neste workspace.</p>}
+        {sectionOpen && (
+          <>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleProjectDragEnd}>
+              <SortableContext items={projects.map((project) => project.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-1">
+                  {projects.map((project) => (
+                    <SortableProject
+                      key={project.id}
+                      project={project}
+                      active={project.id === activeProjectId}
+                      taskStatuses={projectStatuses.filter((status) => status.projectId === project.id)}
+                      expanded={expandedIds.includes(project.id)}
+                      renaming={renamingProjectId === project.id}
+                      renameValue={renameValue}
+                      onSelect={() => setActiveProject(project.id)}
+                      onToggleExpand={() => toggleExpand(project.id)}
+                      onStartRename={() => startRename(project)}
+                      onRenameChange={setRenameValue}
+                      onRenameCommit={commitRename}
+                      onRenameCancel={cancelRename}
+                      onMove={() => openMoveDialog(project)}
+                      onDelete={() => removeProject(project)}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+            {!workspaceId && <p className="px-2.5 py-2 text-xs text-zinc-500">Crie um workspace para começar.</p>}
+            {workspaceId && !projects.length && <p className="px-2.5 py-2 text-xs text-zinc-500">Nenhum projeto neste workspace.</p>}
+          </>
+        )}
       </div>
       <Dialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
-        title={editingProjectId ? 'Editar projeto' : 'Novo projeto'}
+        title="Novo projeto"
       >
         <form onSubmit={submit} className="space-y-4">
           <Input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder="Nome do projeto" aria-label="Nome do projeto" />
-          {!editingProjectId && (
-            <label className="block space-y-1.5">
-              <span className="text-xs font-medium text-zinc-400">Modelo de status</span>
-              <Dropdown
-                aria-label="Modelo de status"
-                value={statusTemplateId}
-                onChange={(event) => setStatusTemplateId(event.target.value)}
-                options={statusTemplates.map((template) => ({ value: template.id, label: template.name }))}
-              />
-            </label>
-          )}
+          <label className="block space-y-1.5">
+            <span className="text-xs font-medium text-zinc-400">Modelo de status</span>
+            <Dropdown
+              aria-label="Modelo de status"
+              value={statusTemplateId}
+              onChange={(event) => setStatusTemplateId(event.target.value)}
+              options={statusTemplates.map((template) => ({ value: template.id, label: template.name }))}
+            />
+          </label>
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button variant="primary" type="submit" disabled={!name.trim() || (!editingProjectId && !workspaceId)}>
-              {editingProjectId ? 'Salvar' : 'Criar projeto'}
+            <Button variant="primary" type="submit" disabled={!name.trim() || !workspaceId}>
+              Criar projeto
             </Button>
           </div>
         </form>
