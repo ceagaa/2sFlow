@@ -1,6 +1,6 @@
 # 2sFlow
 
-O 2sFlow é um gerenciador de tarefas com quadro Kanban feito para organizar o dia a dia de trabalho: você cria workspaces, divide em projetos e move tarefas entre colunas até tudo ficar concluído. Interface toda em português, tema escuro e rápido de usar.
+O 2sFlow é um gerenciador de tarefas com quadro Kanban feito para organizar o dia a dia de trabalho. Você cria workspaces, divide em projetos e move tarefas entre colunas até tudo ficar concluído. Interface toda em português, apenas com funções necessárias para este objetivo.
 
 ## O que dá pra fazer
 
