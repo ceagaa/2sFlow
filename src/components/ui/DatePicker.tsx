@@ -65,15 +65,19 @@ export function DatePicker({ value, onChange, label, compact = false }: DatePick
   }
 
   const todayValue = toDateValue(new Date())
+  const isDueOrOverdue = Boolean(value && value <= todayValue)
+  const deadlineLabel = value
+    ? `${isDueOrOverdue ? (value === todayValue ? 'Vence hoje' : 'Prazo vencido') : label}: ${dateFormatter.format(selectedDate!)}`
+    : label
 
   return (
     <div ref={wrapperRef} className="relative">
       <button
         type="button"
-        aria-label={value ? `${label}: ${dateFormatter.format(selectedDate!)}` : label}
+        aria-label={deadlineLabel}
         aria-haspopup="dialog"
         aria-expanded={open}
-        title={label}
+        title={deadlineLabel}
         onClick={() => {
           if (!open) {
             const currentDate = parseDate(value) ?? new Date()
@@ -83,9 +87,17 @@ export function DatePicker({ value, onChange, label, compact = false }: DatePick
         }}
         className={compact
           ? `inline-flex h-7 items-center gap-1.5 rounded px-1.5 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-500 ${
-              value ? 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200' : 'text-zinc-600 hover:bg-zinc-800 hover:text-zinc-300'
+              value
+                ? isDueOrOverdue
+                  ? 'font-medium text-red-400 hover:bg-zinc-800 hover:text-red-300'
+                  : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+                : 'text-zinc-600 hover:bg-zinc-800 hover:text-zinc-300'
             }`
-          : 'flex h-9 w-full items-center gap-2 rounded-md border border-zinc-800 bg-zinc-950 px-3 text-left text-sm text-zinc-300 outline-none transition-colors hover:border-zinc-700 focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600'}
+          : `flex h-9 w-full items-center gap-2 rounded-md border bg-zinc-950 px-3 text-left text-sm outline-none transition-colors ${
+              isDueOrOverdue
+                ? 'border-red-900/70 text-red-400 hover:border-red-800 focus:border-red-700 focus:ring-1 focus:ring-red-900'
+                : 'border-zinc-800 text-zinc-300 hover:border-zinc-700 focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600'
+            }`}
       >
         <svg aria-hidden="true" viewBox="0 0 16 16" className="size-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.4">
           <rect x="2.25" y="3.5" width="11.5" height="10" rx="1.5" />
