@@ -64,6 +64,7 @@ export function ListView({ workspaceId, projectId, onTaskSelect }: ListViewProps
                         compact
                         label={`Data de entrega de ${task.title}`}
                         value={task.dueDate ?? ''}
+                        completed={status.category === 'done'}
                         onChange={(dueDate) => updateTask(task.id, { dueDate: dueDate || undefined })}
                       />
                       <span className="text-right text-xs tabular-nums text-zinc-500">

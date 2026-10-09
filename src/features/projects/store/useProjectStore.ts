@@ -66,7 +66,7 @@ export const useProjectStore = create<ProjectState>()(
           projectId,
         }))
         set((state) => ({
-          projects: [...state.projects, project],
+          projects: [project, ...state.projects],
           statuses: [...state.statuses, ...projectStatuses],
           activeProjectId: projectId,
         }))

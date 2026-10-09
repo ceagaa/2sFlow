@@ -1,10 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 interface DatePickerProps {
   value: string
   onChange: (value: string) => void
   label: string
   compact?: boolean
+  completed?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 const weekdays = ['2ª', '3ª', '4ª', '5ª', '6ª', 'S', 'D']
@@ -24,9 +27,11 @@ function toDateValue(date: Date) {
   return `${year}-${month}-${day}`
 }
 
-export function DatePicker({ value, onChange, label, compact = false }: DatePickerProps) {
+export function DatePicker({ value, onChange, label, compact = false, completed = false, onOpenChange }: DatePickerProps) {
   const wrapperRef = useRef<HTMLDivElement>(null)
+  const popoverRef = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
+  const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number } | null>(null)
   const [visibleMonth, setVisibleMonth] = useState(() => {
     const selectedDate = parseDate(value)
     const initialDate = selectedDate ?? new Date()
@@ -40,15 +45,24 @@ export function DatePicker({ value, onChange, label, compact = false }: DatePick
   const daysInPreviousMonth = new Date(year, month, 0).getDate()
   const cellCount = Math.ceil((firstWeekday + daysInMonth) / 7) * 7
 
+  function changeOpen(nextOpen: boolean) {
+    setOpen(nextOpen)
+    onOpenChange?.(nextOpen)
+  }
+
   useEffect(() => {
     if (!open) return
 
     function handlePointerDown(event: PointerEvent) {
-      if (event.target instanceof Node && !wrapperRef.current?.contains(event.target)) setOpen(false)
+      if (
+        event.target instanceof Node
+        && !wrapperRef.current?.contains(event.target)
+        && !popoverRef.current?.contains(event.target)
+      ) changeOpen(false)
     }
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') setOpen(false)
+      if (event.key === 'Escape') changeOpen(false)
     }
 
     document.addEventListener('pointerdown', handlePointerDown)
@@ -59,9 +73,37 @@ export function DatePicker({ value, onChange, label, compact = false }: DatePick
     }
   }, [open])
 
+  useLayoutEffect(() => {
+    if (!open) {
+      setPopoverPosition(null)
+      return
+    }
+
+    function updatePosition() {
+      const anchor = wrapperRef.current?.getBoundingClientRect()
+      const popover = popoverRef.current?.getBoundingClientRect()
+      if (!anchor || !popover) return
+
+      const left = Math.max(8, Math.min(anchor.right - popover.width, window.innerWidth - popover.width - 8))
+      const below = anchor.bottom + 8
+      const top = below + popover.height <= window.innerHeight - 8
+        ? below
+        : Math.max(8, anchor.top - popover.height - 8)
+      setPopoverPosition({ top, left })
+    }
+
+    updatePosition()
+    window.addEventListener('resize', updatePosition)
+    document.addEventListener('scroll', updatePosition, true)
+    return () => {
+      window.removeEventListener('resize', updatePosition)
+      document.removeEventListener('scroll', updatePosition, true)
+    }
+  }, [open])
+
   function chooseDate(date: Date) {
     onChange(toDateValue(date))
-    setOpen(false)
+    changeOpen(false)
   }
 
   const todayValue = toDateValue(new Date())
@@ -71,7 +113,11 @@ export function DatePicker({ value, onChange, label, compact = false }: DatePick
     : label
 
   return (
-    <div ref={wrapperRef} className="relative">
+    <div
+      ref={wrapperRef}
+      onPointerDown={(event) => event.stopPropagation()}
+      className={`relative ${open ? 'z-50' : ''}`}
+    >
       <button
         type="button"
         aria-label={deadlineLabel}
@@ -83,20 +129,24 @@ export function DatePicker({ value, onChange, label, compact = false }: DatePick
             const currentDate = parseDate(value) ?? new Date()
             setVisibleMonth(new Date(currentDate.getFullYear(), currentDate.getMonth(), 1))
           }
-          setOpen((current) => !current)
+          changeOpen(!open)
         }}
         className={compact
           ? `inline-flex h-7 items-center gap-1.5 rounded px-1.5 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-500 ${
-              value
-                ? isDueOrOverdue
-                  ? 'font-medium text-red-400 hover:bg-zinc-800 hover:text-red-300'
-                  : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
-                : 'text-zinc-600 hover:bg-zinc-800 hover:text-zinc-300'
+              completed
+                ? 'font-medium text-green-400 hover:bg-zinc-800 hover:text-green-300'
+                : value
+                  ? isDueOrOverdue
+                    ? 'font-medium text-red-400 hover:bg-zinc-800 hover:text-red-300'
+                    : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+                  : 'text-zinc-600 hover:bg-zinc-800 hover:text-zinc-300'
             }`
           : `flex h-9 w-full items-center gap-2 rounded-md border bg-zinc-950 px-3 text-left text-sm outline-none transition-colors ${
-              isDueOrOverdue
-                ? 'border-red-900/70 text-red-400 hover:border-red-800 focus:border-red-700 focus:ring-1 focus:ring-red-900'
-                : 'border-zinc-800 text-zinc-300 hover:border-zinc-700 focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600'
+              completed
+                ? 'border-green-900/70 text-green-400 hover:border-green-800 focus:border-green-700 focus:ring-1 focus:ring-green-900'
+                : isDueOrOverdue
+                  ? 'border-red-900/70 text-red-400 hover:border-red-800 focus:border-red-700 focus:ring-1 focus:ring-red-900'
+                  : 'border-zinc-800 text-zinc-300 hover:border-zinc-700 focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600'
             }`}
       >
         <svg aria-hidden="true" viewBox="0 0 16 16" className="size-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.4">
@@ -108,11 +158,13 @@ export function DatePicker({ value, onChange, label, compact = false }: DatePick
           : <span>{value ? dateFormatter.format(selectedDate!) : 'Definir data de entrega'}</span>}
       </button>
 
-      {open && (
+      {open && createPortal(
         <div
+          ref={popoverRef}
           role="dialog"
           aria-label="Selecionar data de entrega"
-          className="absolute right-0 top-full z-50 mt-2 w-64 rounded-md border border-zinc-700 bg-zinc-950 p-3 text-zinc-100 shadow-2xl"
+          style={popoverPosition ? { top: popoverPosition.top, left: popoverPosition.left } : { visibility: 'hidden' }}
+          className="fixed z-[1000] w-64 rounded-md border border-zinc-700 bg-zinc-950 p-3 text-zinc-100 shadow-2xl"
         >
           <div className="mb-3 flex items-center justify-between">
             <button
@@ -186,7 +238,7 @@ export function DatePicker({ value, onChange, label, compact = false }: DatePick
                 type="button"
                 onClick={() => {
                   onChange('')
-                  setOpen(false)
+                  changeOpen(false)
                 }}
                 className="rounded px-2 py-1 text-[11px] text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
               >
@@ -194,7 +246,8 @@ export function DatePicker({ value, onChange, label, compact = false }: DatePick
               </button>
             )}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )

@@ -9,6 +9,7 @@ interface KanbanCardProps {
   task: Task
   subtasks: Task[]
   completedSubtaskCount: number
+  completed: boolean
   onSelect: (taskId: string) => void
 }
 
@@ -19,10 +20,11 @@ const priorityLabels = {
   urgent: 'Urgente',
 }
 
-export function KanbanCard({ task, subtasks, completedSubtaskCount, onSelect }: KanbanCardProps) {
+export function KanbanCard({ task, subtasks, completedSubtaskCount, completed, onSelect }: KanbanCardProps) {
   const updateTask = useKanbanStore((state) => state.updateTask)
   const duplicateTask = useKanbanStore((state) => state.duplicateTask)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [datePickerOpen, setDatePickerOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
@@ -57,15 +59,17 @@ export function KanbanCard({ task, subtasks, completedSubtaskCount, onSelect }: 
     <article
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`group w-full rounded-md border border-zinc-800 bg-zinc-900 p-3 text-left shadow-sm transition-colors hover:border-zinc-600 ${isDragging ? 'z-10 opacity-50' : ''}`}
+      className={`group relative w-full rounded-md border border-zinc-800 bg-zinc-900 p-3 text-left shadow-sm transition-colors hover:border-zinc-600 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-500 ${datePickerOpen ? 'z-50' : ''} ${isDragging ? 'z-10 opacity-50' : ''}`}
+      {...attributes}
+      {...listeners}
+      role="group"
+      aria-label={task.title}
     >
       <div className="flex items-start gap-2">
         <button
           type="button"
           className="min-w-0 flex-1 text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-500"
           onClick={() => onSelect(task.id)}
-          {...attributes}
-          {...listeners}
         >
           <span className="text-sm font-medium leading-5 text-zinc-100">{task.title}</span>
           {task.description && <p className="mt-2 line-clamp-2 text-xs leading-5 text-zinc-400">{task.description}</p>}
@@ -115,6 +119,8 @@ export function KanbanCard({ task, subtasks, completedSubtaskCount, onSelect }: 
             compact
             label="Definir data de entrega"
             value={task.dueDate ?? ''}
+            completed={completed}
+            onOpenChange={setDatePickerOpen}
             onChange={(dueDate) => updateTask(task.id, { dueDate: dueDate || undefined })}
           />
         </div>

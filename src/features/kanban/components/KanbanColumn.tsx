@@ -40,6 +40,7 @@ export function KanbanColumn({ status, tasks, allTasks, statuses, workspaceId, p
               task={task}
               subtasks={allTasks.filter((candidate) => candidate.parentId === task.id)}
               completedSubtaskCount={allTasks.filter((candidate) => candidate.parentId === task.id && statuses.find((candidateStatus) => candidateStatus.id === candidate.statusId)?.category === 'done').length}
+              completed={status.category === 'done'}
               onSelect={onTaskSelect}
             />
           ))}

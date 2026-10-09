@@ -129,6 +129,7 @@ export function TaskModal({ task, onClose }: TaskModalProps) {
                 <DatePicker
                   label="Selecionar data de entrega"
                   value={dueDate}
+                  completed={statuses.find((status) => status.id === task.statusId)?.category === 'done'}
                   onChange={setDueDate}
                 />
               </label>
