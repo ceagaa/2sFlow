@@ -107,8 +107,10 @@ function PrivacyPolicy() {
         <h2 className="text-base font-semibold text-zinc-100">4. Serviços de terceiros</h2>
         <p className="mt-2">
           O Supabase é utilizado para autenticação e armazenamento em nuvem somente quando essa
-          integração está configurada na instalação que você utiliza. A versão atual do app oferece
-          cadastro e login por e-mail e senha; não há login com Google implementado na interface.
+          integração está configurada na instalação que você utiliza. O app oferece cadastro e
+          login por e-mail e senha ou, quando o provedor está habilitado no Supabase, pela conta
+          Google. Ao escolher o Google, dados necessários à autenticação são compartilhados com
+          o Google e processados pelo Supabase conforme as políticas desses provedores.
         </p>
         <p className="mt-2">
           O app carrega a fonte Inter pelo Google Fonts. Para fornecer a fonte, o navegador faz

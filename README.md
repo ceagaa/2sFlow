@@ -56,6 +56,11 @@ Para ativar a sincronização com a nuvem:
 
 3. Reinicie o dev server.
 
+Para habilitar o acesso com Google, configure as credenciais OAuth do Google no provedor Google
+em **Authentication > Providers** no painel do Supabase. Adicione também a URL do seu app em
+**Authentication > URL Configuration > Redirect URLs**. No Google Cloud, configure a URL de
+callback exibida pelo Supabase como URI de redirecionamento autorizada.
+
 ## Estrutura do código
 
 ```
