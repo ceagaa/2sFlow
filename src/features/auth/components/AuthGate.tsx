@@ -192,8 +192,25 @@ function AuthenticatedApp({ client }: { client: SupabaseClient<Database> }) {
 
 function LoadingScreen({ label }: { label: string }) {
   return (
-    <main className="grid min-h-screen place-items-center bg-zinc-950 text-sm text-zinc-400">
-      {label}
+    <main className="grid min-h-screen place-items-center bg-zinc-950 px-4 text-zinc-400">
+      <div role="status" aria-live="polite" className="flex flex-col items-center gap-5">
+        <div className="relative grid size-20 place-items-center">
+          <div aria-hidden="true" className="absolute inset-0 animate-spin rounded-full border-2 border-zinc-800 border-t-brand motion-reduce:animate-none" />
+          <div aria-hidden="true" className="grid size-12 place-items-center rounded-xl border border-zinc-800 bg-zinc-900 text-brand shadow-lg shadow-black/20">
+            <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="5" y="4" width="14" height="17" rx="2" />
+              <path d="m8 9 1.5 1.5L12 8m1 2h3m-8 5 1.5 1.5L12 14m1 2h3" />
+            </svg>
+          </div>
+          <span aria-hidden="true" className="absolute -bottom-1 -right-1 grid size-7 place-items-center rounded-lg border border-zinc-700 bg-zinc-900 text-[10px] font-bold text-zinc-100">
+            2s
+          </span>
+        </div>
+        <div className="text-center">
+          <p className="text-sm font-semibold text-zinc-100">2sFlow</p>
+          <p className="mt-1 text-xs">{label}</p>
+        </div>
+      </div>
     </main>
   )
 }
