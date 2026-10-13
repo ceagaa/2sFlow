@@ -48,6 +48,7 @@ Para ativar a sincronização com a nuvem:
    ```
    VITE_SUPABASE_URL=sua_url
    VITE_SUPABASE_ANON_KEY=sua_chave_anon
+   VITE_GOOGLE_CLIENT_ID=seu_client_id.apps.googleusercontent.com
    ```
 
    > Só a chave pública (anon) pode ir no frontend. Nunca use a `service_role` aqui.
@@ -56,10 +57,19 @@ Para ativar a sincronização com a nuvem:
 
 3. Reinicie o dev server.
 
-Para habilitar o acesso com Google, configure as credenciais OAuth do Google no provedor Google
-em **Authentication > Providers** no painel do Supabase. Adicione também a URL do seu app em
-**Authentication > URL Configuration > Redirect URLs**. No Google Cloud, configure a URL de
-callback exibida pelo Supabase como URI de redirecionamento autorizada.
+Para habilitar o acesso com Google:
+
+1. No Google Cloud Console, crie ou selecione um OAuth Client ID do tipo **Web application**.
+2. Configure a origem JavaScript autorizada para cada domínio onde o app roda (por exemplo,
+   `http://localhost:5173` e o domínio de produção).
+3. Copie o Client ID para `VITE_GOOGLE_CLIENT_ID` no `.env`.
+4. No Supabase, habilite **Authentication > Providers > Google** e informe exatamente o mesmo
+   Client ID e o Client Secret correspondente ao OAuth Client criado no Google Cloud.
+5. Reinicie o dev server após alterar o `.env`.
+
+O erro `401: invalid_client` indica que o Client ID enviado ao Google não existe ou não é válido.
+Confira se ele foi copiado integralmente do OAuth Client correto e se o valor em
+`VITE_GOOGLE_CLIENT_ID` é o mesmo configurado no provedor Google do Supabase.
 
 ## Estrutura do código
 
