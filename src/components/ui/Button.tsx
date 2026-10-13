@@ -10,7 +10,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variants: Record<ButtonVariant, string> = {
-  primary: 'border border-zinc-100 bg-zinc-100 text-zinc-950 hover:bg-white',
+  primary: 'border border-brand bg-brand text-white hover:border-brand-hover hover:bg-brand-hover',
   secondary: 'border border-zinc-700 bg-zinc-900 text-zinc-100 hover:bg-zinc-800',
   ghost: 'border border-transparent bg-transparent text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100',
   danger: 'border border-zinc-700 bg-zinc-900 text-zinc-100 hover:border-zinc-500 hover:bg-zinc-800',

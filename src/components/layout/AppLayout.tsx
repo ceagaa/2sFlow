@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useProjectStore } from '../../features/projects/store/useProjectStore'
 import { useWorkspaceStore } from '../../features/workspaces/store/useWorkspaceStore'
-import { Header, type ViewMode } from './Header'
+import { Header, type ThemeMode, type ViewMode } from './Header'
 import { Sidebar } from './Sidebar'
 
 interface AppLayoutProps {
@@ -10,9 +10,19 @@ interface AppLayoutProps {
   onSignOut?: () => void | Promise<void>
 }
 
+function readTheme(): ThemeMode {
+  try {
+    return localStorage.getItem('2sflow-theme') === 'light' ? 'light' : 'dark'
+  } catch (error) {
+    console.error('Falha ao carregar a preferência de tema:', error)
+    return 'dark'
+  }
+}
+
 export function AppLayout({ children, accountEmail, onSignOut }: AppLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [view, setView] = useState<ViewMode>('kanban')
+  const [theme, setTheme] = useState<ThemeMode>(readTheme)
   const activeWorkspaceId = useWorkspaceStore((state) => state.activeWorkspaceId)
   const activeWorkspace = useWorkspaceStore((state) => state.workspaces.find((workspace) => workspace.id === activeWorkspaceId))
   const projects = useProjectStore((state) => state.projects)
@@ -25,6 +35,15 @@ export function AppLayout({ children, accountEmail, onSignOut }: AppLayoutProps)
     if (activeProject && activeProject.id !== activeProjectId) setActiveProject(activeProject.id)
   }, [activeProject, activeProjectId, setActiveProject])
 
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    try {
+      localStorage.setItem('2sflow-theme', theme)
+    } catch (error) {
+      console.error('Falha ao salvar a preferência de tema:', error)
+    }
+  }, [theme])
+
   return (
     <div className="flex h-screen min-h-[480px] overflow-hidden bg-zinc-950 text-zinc-100">
       <Sidebar collapsed={sidebarCollapsed} authenticated={Boolean(accountEmail)} />
@@ -35,6 +54,8 @@ export function AppLayout({ children, accountEmail, onSignOut }: AppLayoutProps)
           view={view}
           onViewChange={setView}
           onToggleSidebar={() => setSidebarCollapsed((collapsed) => !collapsed)}
+          theme={theme}
+          onToggleTheme={() => setTheme((currentTheme) => currentTheme === 'dark' ? 'light' : 'dark')}
           accountEmail={accountEmail}
           onSignOut={onSignOut}
         />

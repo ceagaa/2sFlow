@@ -2,6 +2,7 @@ import { Button } from '../ui/Button'
 import type { Project, Workspace } from '../../features/kanban/types'
 
 export type ViewMode = 'kanban' | 'list'
+export type ThemeMode = 'dark' | 'light'
 
 interface HeaderProps {
   workspace?: Workspace
@@ -9,11 +10,13 @@ interface HeaderProps {
   view: ViewMode
   onViewChange: (view: ViewMode) => void
   onToggleSidebar: () => void
+  theme: ThemeMode
+  onToggleTheme: () => void
   accountEmail?: string
   onSignOut?: () => void | Promise<void>
 }
 
-export function Header({ workspace, project, view, onViewChange, onToggleSidebar, accountEmail, onSignOut }: HeaderProps) {
+export function Header({ workspace, project, view, onViewChange, onToggleSidebar, theme, onToggleTheme, accountEmail, onSignOut }: HeaderProps) {
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-zinc-800 px-4 sm:px-6">
       <div className="flex min-w-0 items-center gap-3">
@@ -29,6 +32,15 @@ export function Header({ workspace, project, view, onViewChange, onToggleSidebar
           <Button size="sm" variant={view === 'kanban' ? 'secondary' : 'ghost'} aria-pressed={view === 'kanban'} onClick={() => onViewChange('kanban')}>Kanban</Button>
           <Button size="sm" variant={view === 'list' ? 'secondary' : 'ghost'} aria-pressed={view === 'list'} onClick={() => onViewChange('list')}>Lista</Button>
         </div>
+        <Button
+          size="icon"
+          variant="ghost"
+          aria-label={`Ativar tema ${theme === 'dark' ? 'claro' : 'escuro'}`}
+          title={`Tema ${theme === 'dark' ? 'escuro' : 'claro'}`}
+          onClick={onToggleTheme}
+        >
+          {theme === 'dark' ? '☼' : '☾'}
+        </Button>
         {accountEmail && (
           <div className="flex items-center gap-2">
             <span className="hidden max-w-40 truncate text-xs text-zinc-500 lg:block">{accountEmail}</span>

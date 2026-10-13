@@ -107,9 +107,10 @@ export function DatePicker({ value, onChange, label, compact = false, completed 
   }
 
   const todayValue = toDateValue(new Date())
-  const isDueOrOverdue = Boolean(value && value <= todayValue)
+  const isOverdue = Boolean(value && value < todayValue)
+  const isDueToday = Boolean(value && value === todayValue)
   const deadlineLabel = value
-    ? `${isDueOrOverdue ? (value === todayValue ? 'Vence hoje' : 'Prazo vencido') : label}: ${dateFormatter.format(selectedDate!)}`
+    ? `${isOverdue ? 'Prazo vencido' : isDueToday ? 'Vence hoje' : label}: ${dateFormatter.format(selectedDate!)}`
     : label
 
   return (
@@ -133,19 +134,23 @@ export function DatePicker({ value, onChange, label, compact = false, completed 
         }}
         className={compact
           ? `inline-flex h-7 items-center gap-1.5 rounded px-1.5 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-500 ${
-              completed
+              isDueToday
+                ? 'font-medium text-[#FF4103] hover:bg-zinc-800 hover:text-[#FF4103]'
+                : completed
                 ? 'font-medium text-green-400 hover:bg-zinc-800 hover:text-green-300'
                 : value
-                  ? isDueOrOverdue
-                    ? 'font-medium text-red-400 hover:bg-zinc-800 hover:text-red-300'
-                    : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
-                  : 'text-zinc-600 hover:bg-zinc-800 hover:text-zinc-300'
+                ? isOverdue
+                  ? 'font-medium text-red-400 hover:bg-zinc-800 hover:text-red-300'
+                  : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+                : 'text-zinc-600 hover:bg-zinc-800 hover:text-zinc-300'
             }`
           : `flex h-9 w-full items-center gap-2 rounded-md border bg-zinc-950 px-3 text-left text-sm outline-none transition-colors ${
-              completed
+              isDueToday
+                ? 'border-[#FF4103]/50 text-[#FF4103] hover:border-[#FF4103] focus:border-[#FF4103] focus:ring-1 focus:ring-[#FF4103]/30'
+                : completed
                 ? 'border-green-900/70 text-green-400 hover:border-green-800 focus:border-green-700 focus:ring-1 focus:ring-green-900'
-                : isDueOrOverdue
-                  ? 'border-red-900/70 text-red-400 hover:border-red-800 focus:border-red-700 focus:ring-1 focus:ring-red-900'
+                : isOverdue
+                ? 'border-red-900/70 text-red-400 hover:border-red-800 focus:border-red-700 focus:ring-1 focus:ring-red-900'
                   : 'border-zinc-800 text-zinc-300 hover:border-zinc-700 focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600'
             }`}
       >
@@ -164,7 +169,7 @@ export function DatePicker({ value, onChange, label, compact = false, completed 
           role="dialog"
           aria-label="Selecionar data de entrega"
           style={popoverPosition ? { top: popoverPosition.top, left: popoverPosition.left } : { visibility: 'hidden' }}
-          className="fixed z-[1000] w-64 rounded-md border border-zinc-700 bg-zinc-950 p-3 text-zinc-100 shadow-2xl"
+          className="fixed z-[1000] w-64 rounded-md border border-zinc-700 bg-zinc-900 p-3 text-zinc-100 shadow-2xl"
         >
           <div className="mb-3 flex items-center justify-between">
             <button
@@ -213,11 +218,11 @@ export function DatePicker({ value, onChange, label, compact = false, completed 
                   onClick={() => chooseDate(date)}
                   className={`grid size-7 place-items-center rounded text-xs tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-400 ${
                     selected
-                      ? 'bg-zinc-100 font-semibold text-zinc-950'
+                      ? 'bg-brand font-semibold text-white'
                       : isCurrentMonth
                         ? 'text-zinc-300 hover:bg-zinc-800'
                         : 'text-zinc-700 hover:bg-zinc-900 hover:text-zinc-500'
-                  } ${today && !selected ? 'ring-1 ring-inset ring-zinc-600' : ''}`}
+                  } ${today && !selected ? 'ring-1 ring-inset ring-[#FF4103]' : ''}`}
                 >
                   {day}
                 </button>

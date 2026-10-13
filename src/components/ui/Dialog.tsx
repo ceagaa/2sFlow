@@ -40,7 +40,7 @@ export function Dialog({ open, onClose, title, description, children, className 
         if (event.target === dialogRef.current) onClose()
       }}
       className={cn(
-        'w-[min(100%-2rem,32rem)] rounded-md border border-zinc-800 bg-zinc-950 p-0 text-zinc-100 shadow-2xl backdrop:bg-black/70',
+        'w-[min(100%-2rem,32rem)] rounded-md border border-zinc-800 bg-zinc-900 p-0 text-zinc-100 shadow-2xl backdrop:bg-black/70',
         className,
       )}
     >

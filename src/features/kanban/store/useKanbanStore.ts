@@ -20,6 +20,12 @@ interface KanbanState {
     targetWorkspaceId: string,
     statusIdMap: Map<string, string>,
   ) => void
+  transferTasksToProject: (
+    taskIds: string[],
+    targetProjectId: string,
+    targetWorkspaceId: string,
+    statusIdMap: Map<string, string>,
+  ) => void
   removeTasksForProject: (projectId: string) => void
   removeTasksForWorkspace: (workspaceId: string) => void
   transferTasksForProject: (projectId: string, workspaceId: string) => void
@@ -115,6 +121,46 @@ export const useKanbanStore = create<KanbanState>()(
           updatedAt: now,
         }))
         set((state) => ({ tasks: [...state.tasks, ...duplicates] }))
+      },
+      transferTasksToProject: (taskIds, targetProjectId, targetWorkspaceId, statusIdMap) => {
+        const movingIds = new Set(taskIds)
+        const currentTasks = get().tasks
+        const movingTasks = currentTasks.filter((task) => movingIds.has(task.id))
+        if (!movingTasks.length || movingTasks.some((task) => !statusIdMap.has(task.statusId))) return
+
+        const nextPositions = new Map<string, number>()
+        for (const task of currentTasks) {
+          if (task.projectId !== targetProjectId || movingIds.has(task.id)) continue
+          const key = `${task.statusId}:${task.parentId ?? 'root'}`
+          nextPositions.set(key, Math.max(nextPositions.get(key) ?? 0, task.position + 1))
+        }
+
+        const now = new Date().toISOString()
+        set((state) => ({
+          tasks: state.tasks.map((task) => {
+            if (movingIds.has(task.id)) {
+              const statusId = statusIdMap.get(task.statusId)
+              if (!statusId) return task
+              const parentId = task.parentId && movingIds.has(task.parentId) ? task.parentId : null
+              const key = `${statusId}:${parentId ?? 'root'}`
+              const position = nextPositions.get(key) ?? 0
+              nextPositions.set(key, position + 1)
+              return {
+                ...task,
+                workspaceId: targetWorkspaceId,
+                projectId: targetProjectId,
+                statusId,
+                parentId,
+                position,
+                updatedAt: now,
+              }
+            }
+            if (task.parentId && movingIds.has(task.parentId)) {
+              return { ...task, parentId: null, updatedAt: now }
+            }
+            return task
+          }),
+        }))
       },
       removeTasksForProject: (projectId) => {
         set((state) => ({ tasks: state.tasks.filter((task) => task.projectId !== projectId) }))

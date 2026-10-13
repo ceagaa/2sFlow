@@ -7,6 +7,7 @@ import { DatePicker } from '../../../components/ui/DatePicker'
 import { Dropdown } from '../../../components/ui/Dropdown'
 import { Input } from '../../../components/ui/Input'
 import { useProjectStore } from '../../projects/store/useProjectStore'
+import { useWorkspaceStore } from '../../workspaces/store/useWorkspaceStore'
 import { useKanbanStore } from '../store/useKanbanStore'
 import type { Task, TaskPriority } from '../types'
 
@@ -27,7 +28,10 @@ export function TaskModal({ task, onClose }: TaskModalProps) {
   const addTask = useKanbanStore((state) => state.addTask)
   const updateTask = useKanbanStore((state) => state.updateTask)
   const deleteTask = useKanbanStore((state) => state.deleteTask)
+  const transferTasksToProject = useKanbanStore((state) => state.transferTasksToProject)
+  const projects = useProjectStore((state) => state.projects)
   const allStatuses = useProjectStore((state) => state.statuses)
+  const workspaces = useWorkspaceStore((state) => state.workspaces)
   const statuses = allStatuses.filter((status) => status.projectId === task?.projectId)
   const subtasks = allTasks.filter((candidate) => candidate.parentId === task?.id).sort((a, b) => a.position - b.position)
   const doneStatus = statuses.find((status) => status.category === 'done')
@@ -38,6 +42,12 @@ export function TaskModal({ task, onClose }: TaskModalProps) {
   const [dueDate, setDueDate] = useState(task?.dueDate ?? '')
   const [newSubtask, setNewSubtask] = useState('')
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null)
+  const [transferTask, setTransferTask] = useState<Task | null>(null)
+  const [transferScope, setTransferScope] = useState<'task' | 'subtasks' | 'both'>('task')
+  const [targetProjectId, setTargetProjectId] = useState('')
+  const transferProjects = projects.filter((project) => project.id !== task?.projectId)
+  const targetProject = projects.find((project) => project.id === targetProjectId)
+  const targetStatuses = allStatuses.filter((status) => status.projectId === targetProjectId)
 
   useEffect(() => {
     setTitle(task?.title ?? '')
@@ -86,6 +96,53 @@ export function TaskModal({ task, onClose }: TaskModalProps) {
     deleteTask(taskToDelete.id)
     if (taskToDelete.id === task?.id) onClose()
     setTaskToDelete(null)
+  }
+
+  function openTransfer(selectedTask: Task, scope: 'task' | 'subtasks' | 'both' = 'task') {
+    setTransferTask(selectedTask)
+    setTransferScope(scope)
+    setTargetProjectId(transferProjects[0]?.id ?? '')
+  }
+
+  function closeTransfer() {
+    setTransferTask(null)
+    setTargetProjectId('')
+  }
+
+  function submitTransfer(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!transferTask || !targetProject || !targetStatuses.length) return
+
+    const selectedTasks = transferTask.id === task?.id
+      ? transferScope === 'both'
+        ? [transferTask, ...subtasks]
+        : transferScope === 'subtasks'
+          ? subtasks
+          : [transferTask]
+      : [transferTask]
+    if (!selectedTasks.length) return
+
+    const sourceStatuses = allStatuses.filter((status) => status.projectId === transferTask.projectId)
+    const statusIdMap = new Map(
+      sourceStatuses.flatMap((sourceStatus) => {
+        const targetStatus = targetStatuses.find((status) => status.category === sourceStatus.category)
+          ?? targetStatuses[0]
+        return targetStatus ? [[sourceStatus.id, targetStatus.id] as const] : []
+      }),
+    )
+    for (const selectedTask of selectedTasks) {
+      if (!statusIdMap.has(selectedTask.statusId)) {
+        statusIdMap.set(selectedTask.statusId, targetStatuses[0].id)
+      }
+    }
+    transferTasksToProject(
+      selectedTasks.map((selectedTask) => selectedTask.id),
+      targetProject.id,
+      targetProject.workspaceId,
+      statusIdMap,
+    )
+    closeTransfer()
+    if (transferTask.id === task?.id) onClose()
   }
 
   return (
@@ -157,6 +214,14 @@ export function TaskModal({ task, onClose }: TaskModalProps) {
                     <span className={`min-w-0 flex-1 text-sm ${complete ? 'text-zinc-500 line-through' : 'text-zinc-300'}`}>{subtask.title}</span>
                     <button
                       type="button"
+                      onClick={() => openTransfer(subtask)}
+                      aria-label={`Transferir subtarefa ${subtask.title}`}
+                      className="rounded px-1.5 text-xs text-zinc-500 hover:bg-zinc-800 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-500"
+                    >
+                      ↗
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setTaskToDelete(subtask)}
                       aria-label={`Excluir ${subtask.title}`}
                       className="rounded px-1.5 text-zinc-600 opacity-0 hover:bg-zinc-800 hover:text-zinc-200 group-hover:opacity-100 focus:opacity-100"
@@ -180,7 +245,10 @@ export function TaskModal({ task, onClose }: TaskModalProps) {
           </section>
 
           <div className="flex items-center justify-between border-t border-zinc-800 pt-4">
-            <Button variant="ghost" className="text-zinc-400 hover:text-zinc-100" onClick={removeTask}>Excluir tarefa</Button>
+            <div className="flex gap-2">
+              <Button variant="ghost" className="text-zinc-400 hover:text-zinc-100" onClick={removeTask}>Excluir tarefa</Button>
+              <Button variant="ghost" onClick={() => openTransfer(task)}>Transferir</Button>
+            </div>
             <div className="flex gap-2">
               <Button variant="ghost" onClick={onClose}>Cancelar</Button>
               <Button variant="primary" type="submit" form="task-details-form" disabled={!title.trim()}>Salvar</Button>
@@ -188,6 +256,70 @@ export function TaskModal({ task, onClose }: TaskModalProps) {
           </div>
         </div>
         )}
+      </Dialog>
+      <Dialog
+        open={Boolean(transferTask)}
+        onClose={closeTransfer}
+        title="Transferir para outro projeto"
+        description={transferTask ? `Escolha o destino de "${transferTask.title}".` : undefined}
+      >
+        <form onSubmit={submitTransfer} className="space-y-4">
+          {transferTask?.id === task?.id && subtasks.length > 0 && (
+            <fieldset className="space-y-2">
+              <legend className="mb-2 text-xs font-medium text-zinc-400">O que deseja transferir?</legend>
+              {([
+                ['task', 'Somente a tarefa'],
+                ['subtasks', 'Somente as subtarefas'],
+                ['both', 'Tarefa e subtarefas'],
+              ] as const).map(([value, label]) => (
+                <label key={value} className="flex items-center gap-2 text-sm text-zinc-300">
+                  <input
+                    type="radio"
+                    name="transfer-scope"
+                    value={value}
+                    checked={transferScope === value}
+                    onChange={() => setTransferScope(value)}
+                    className="accent-[#FF4103]"
+                  />
+                  {label}
+                </label>
+              ))}
+              <p className="text-xs text-zinc-500">
+                {transferScope === 'task'
+                  ? 'As subtarefas ficam no projeto atual como tarefas independentes.'
+                  : transferScope === 'subtasks'
+                    ? 'As subtarefas transferidas passam a ser tarefas independentes no destino.'
+                    : 'A relação entre a tarefa e as subtarefas será mantida.'}
+              </p>
+            </fieldset>
+          )}
+          <label className="block space-y-1.5">
+            <span className="text-xs font-medium text-zinc-400">Projeto de destino</span>
+            <Dropdown
+              aria-label="Projeto de destino"
+              value={targetProjectId}
+              onChange={(event) => setTargetProjectId(event.target.value)}
+              options={transferProjects.map((project) => {
+                const workspaceName = workspaces.find((workspace) => workspace.id === project.workspaceId)?.name ?? 'Workspace'
+                return { value: project.id, label: `${workspaceName} / ${project.name}` }
+              })}
+              disabled={!transferProjects.length}
+            />
+          </label>
+          {(!transferProjects.length || (targetProjectId && !targetStatuses.length)) && (
+            <p className="text-xs text-zinc-500">
+              {!transferProjects.length
+                ? 'Não há outro projeto disponível. Crie um projeto em qualquer workspace para transferir.'
+                : 'O projeto de destino não possui status configurados.'}
+            </p>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={closeTransfer}>Cancelar</Button>
+            <Button variant="primary" type="submit" disabled={!targetProject || !targetStatuses.length}>
+              Transferir
+            </Button>
+          </div>
+        </form>
       </Dialog>
       <ConfirmDialog
         open={Boolean(taskToDelete)}
