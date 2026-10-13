@@ -1,11 +1,19 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { AuthGate } from './features/auth/components/AuthGate'
+import { LegalPage } from './features/legal/LegalPage'
 import './index.css'
+
+const path = window.location.pathname.replace(/\/+$/, '') || '/'
+const legalDocument = path === '/privacidade'
+  ? 'privacy'
+  : path === '/termos'
+    ? 'terms'
+    : null
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <AuthGate />
+    {legalDocument ? <LegalPage document={legalDocument} /> : <AuthGate />}
   </React.StrictMode>,
 )
 

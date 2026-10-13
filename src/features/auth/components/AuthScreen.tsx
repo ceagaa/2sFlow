@@ -165,6 +165,10 @@ export function AuthScreen({ client, error, onRetry }: AuthScreenProps) {
             <Button size="sm" onClick={onRetry}>Recarregar</Button>
           </div>
         )}
+        <nav aria-label="Documentos legais" className="mt-6 flex gap-4 border-t border-zinc-800 pt-4 text-xs text-zinc-500">
+          <a href="/privacidade" className="hover:text-zinc-200">Política de Privacidade</a>
+          <a href="/termos" className="hover:text-zinc-200">Termos de Serviço</a>
+        </nav>
       </section>
     </main>
   )

@@ -81,3 +81,8 @@ A ideia é simples: cada feature cuida do seu estado (store), componentes e regr
 | `npm run dev` | Sobe o servidor de desenvolvimento |
 | `npm run build` | Compila TypeScript e gera o build |
 | `npm run preview` | Visualiza o build de produção |
+
+## Documentos públicos
+
+- Política de Privacidade: `/privacidade`
+- Termos de Serviço: `/termos`

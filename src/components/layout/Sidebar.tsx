@@ -99,8 +99,12 @@ export function Sidebar({ collapsed, authenticated }: SidebarProps) {
       <nav aria-label="Navegação principal" className="flex-1 overflow-y-auto p-3">
         <ProjectSelector workspaceId={useActiveWorkspaceId()} />
       </nav>
-      <div className="border-t border-zinc-800 px-4 py-3 text-[11px] text-zinc-600">
-        {authenticated ? 'Conta autenticada · dados no Supabase' : 'Workspace local · sincronização desativada'}
+      <div className="space-y-2 border-t border-zinc-800 px-4 py-3 text-[11px] text-zinc-600">
+        {!authenticated && <p>Workspace local · sincronização desativada</p>}
+        <nav aria-label="Documentos legais" className="flex gap-3">
+          <a href="/privacidade" className="hover:text-zinc-300">Privacidade</a>
+          <a href="/termos" className="hover:text-zinc-300">Termos</a>
+        </nav>
       </div>
       {!collapsed && (
         <div
