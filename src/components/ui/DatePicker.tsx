@@ -134,10 +134,10 @@ export function DatePicker({ value, onChange, label, compact = false, completed 
         }}
         className={compact
           ? `inline-flex h-7 items-center gap-1.5 rounded px-1.5 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-500 ${
-              isDueToday
-                ? 'font-medium text-[#FF4103] hover:bg-zinc-800 hover:text-[#FF4103]'
-                : completed
+              completed
                 ? 'font-medium text-green-400 hover:bg-zinc-800 hover:text-green-300'
+                : isDueToday
+                ? 'font-medium text-[#FF4103] hover:bg-zinc-800 hover:text-[#FF4103]'
                 : value
                 ? isOverdue
                   ? 'font-medium text-red-400 hover:bg-zinc-800 hover:text-red-300'
@@ -145,10 +145,10 @@ export function DatePicker({ value, onChange, label, compact = false, completed 
                 : 'text-zinc-600 hover:bg-zinc-800 hover:text-zinc-300'
             }`
           : `flex h-9 w-full items-center gap-2 rounded-md border bg-zinc-950 px-3 text-left text-sm outline-none transition-colors ${
-              isDueToday
-                ? 'border-[#FF4103]/50 text-[#FF4103] hover:border-[#FF4103] focus:border-[#FF4103] focus:ring-1 focus:ring-[#FF4103]/30'
-                : completed
+              completed
                 ? 'border-green-900/70 text-green-400 hover:border-green-800 focus:border-green-700 focus:ring-1 focus:ring-green-900'
+                : isDueToday
+                ? 'border-[#FF4103]/50 text-[#FF4103] hover:border-[#FF4103] focus:border-[#FF4103] focus:ring-1 focus:ring-[#FF4103]/30'
                 : isOverdue
                 ? 'border-red-900/70 text-red-400 hover:border-red-800 focus:border-red-700 focus:ring-1 focus:ring-red-900'
                   : 'border-zinc-800 text-zinc-300 hover:border-zinc-700 focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600'
